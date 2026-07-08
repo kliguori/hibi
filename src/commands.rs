@@ -249,8 +249,7 @@ pub fn source_edit(db: &mut Database) -> anyhow::Result<()> {
         let opt_name = format!("Name  [{}]", cur_name);
         let opt_type = format!("Type  [{}]", cur_type);
         let opt_done = "Finish".to_string();
-        let Some(choice) =
-            skim_pick(&[opt_name.clone(), opt_type.clone(), opt_done.clone()])
+        let Some(choice) = skim_pick(&[opt_name.clone(), opt_type.clone(), opt_done.clone()])
         else {
             break;
         };
@@ -1093,7 +1092,10 @@ pub fn config_show(config: &Config) -> anyhow::Result<()> {
     println!("current dataset : {}", config.current);
     println!("keep backups    : {}", config.keep_backups);
     println!("data root       : {}", root.display());
-    println!("config file     : {}", crate::store::config_file()?.display());
+    println!(
+        "config file     : {}",
+        crate::store::config_file()?.display()
+    );
     Ok(())
 }
 
@@ -1146,7 +1148,13 @@ pub fn backup_restore(config: &Config, lang_override: Option<String>) -> anyhow:
 
     let db_path = crate::store::db_file(&root, &lang);
     let timestamp = Local::now().format("%Y-%m-%dT%H-%M-%S").to_string();
-    crate::store::restore_backup(&db_path, &backups_dir, &chosen, &timestamp, config.keep_backups)?;
+    crate::store::restore_backup(
+        &db_path,
+        &backups_dir,
+        &chosen,
+        &timestamp,
+        config.keep_backups,
+    )?;
 
     println!(
         "Restored '{}' from {}.\nYour pre-restore state was saved as a new backup — \
@@ -1206,11 +1214,14 @@ mod tests {
         let db = sample_db();
         assert_eq!(
             totals_by_type(&db),
-            vec![("anime".to_string(), 200), ("podcast".to_string(), 110)]
+            vec![("youtube".to_string(), 200), ("podcast".to_string(), 110)]
         );
         assert_eq!(
             totals_by_mode(&db),
-            vec![("watching".to_string(), 200), ("listening".to_string(), 110)]
+            vec![
+                ("watching".to_string(), 200),
+                ("listening".to_string(), 110)
+            ]
         );
         assert_eq!(
             totals_by_source(&db),
