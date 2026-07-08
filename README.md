@@ -1,6 +1,6 @@
 # hibi
 
-[![CI](https://github.com/<you>/hibi/actions/workflows/ci.yml/badge.svg)](https://github.com/<you>/hibi/actions/workflows/ci.yml)
+[![CI](https://github.com/kliguori/hibi/actions/workflows/ci.yml/badge.svg)](https://github.com/kliguori/hibi/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A terminal immersion logging tracker for language learners.
@@ -35,8 +35,8 @@ Everything is stored per language as a single JSON file.
 **With [Nix](https://nixos.org)** — reproducible, nothing to set up first:
 
 ```sh
-nix run github:<you>/hibi -- stats       # run without installing
-nix profile install github:<you>/hibi     # install onto your PATH
+nix run github:kliguori/hibi -- stats       # run without installing
+nix profile install github:kliguori/hibi     # install onto your PATH
 ```
 
 **As a flake input** (NixOS / home-manager).
@@ -47,7 +47,7 @@ Add the input, forward your flake inputs into your modules, then install the pac
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    hibi.url = "github:<you>/hibi";
+    hibi.url = "github:kliguori/hibi";
     hibi.inputs.nixpkgs.follows = "nixpkgs"; # reuse your nixpkgs
   };
 
@@ -81,7 +81,7 @@ For home-manager run as a NixOS module, forward inputs with `home-manager.extraS
 **With Cargo** — needs a [Rust toolchain](https://rustup.rs):
 
 ```sh
-cargo install --git https://github.com/<you>/hibi
+cargo install --git https://github.com/kliguori/hibi
 ```
 
 **From a local checkout:**
