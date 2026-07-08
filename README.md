@@ -1,8 +1,5 @@
 # hibi
 
-[![CI](https://github.com/kliguori/hibi/actions/workflows/ci.yml/badge.svg)](https://github.com/kliguori/hibi/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
 A terminal immersion logging tracker for language learners.
 Log the time you spend watching, listening, and reading in your target language, then see it broken down over rolling time windows — no database, just JSON on disk.
 
@@ -142,16 +139,6 @@ Anything that selects, removes, or edits an existing item opens a fuzzy picker.
 | The active timer    | `~/.local/share/hibi/clock.json` (one, global)    |
 
 The `sample` dataset is seeded on first run and is **read-only** — explore it, but create your own language to start logging.
-
-## Development
-
-```sh
-cargo test            # unit tests
-nix flake check       # build + run the tests
-nix build -L          # build, streaming compiler output (warnings included)
-```
-
-The code is small: `store.rs` (data + persistence), `config.rs` (settings), `commands.rs` (command logic), `cli.rs` (parsing + orchestration), `main.rs` (entry point).
 
 ## Roadmap
 
