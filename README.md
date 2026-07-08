@@ -62,7 +62,7 @@ Add the input, forward your flake inputs into your modules, then install the pac
 ```
 
 Modules don't see flake inputs unless you pass them with `specialArgs` for NixOS modules and `extraSpecialArgs` for home-manager.
-Then reference the package, `inputs.hibi.packages.${pkgs.system}.default`, wherever you install packages:
+Then reference the package, `inputs.hibi.packages.${pkgs.stdenv.hostPlatform.system}.default`, wherever you install packages:
 
 ```nix
 # configuration.nix (NixOS)
