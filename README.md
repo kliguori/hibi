@@ -94,15 +94,15 @@ cargo build --release  # target/release/hibi
 ## Quick start
 
 ```sh
-hibi                       # first run seeds a read-only 'sample' dataset
-hibi stats                 # explore the sample dashboard
+hibi                        # first run seeds a read-only 'sample' dataset
+hibi stats                  # explore the sample dashboard
 hibi language add japanese  # create your own dataset and switch to it
 
 hibi type add anime
 hibi mode add watching
-hibi source add "Terrace House"   # pick the type from a menu
-hibi log                          # pick source + mode, enter minutes
-hibi stats                        # see it counted
+hibi source add "One Piece"   # pick the type from a menu
+hibi log                      # pick source + mode, enter minutes
+hibi stats                    # see it counted
 ```
 
 ## Commands
