@@ -10,7 +10,7 @@ Log the time you spend watching, listening, and reading in your target language,
 - **Fast logging** — `hibi log` for a quick entry, or a live `hibi clock` stopwatch (with pause/resume) for hands-off timing.
 - **A stats dashboard** — totals over today / yesterday / last 7 / 30 / 90 / 360 days / all time, plus current & longest streak and breakdowns by type, mode, and source.
 - **Per-language datasets** — track several languages independently, each with its own data and backups; switch with `--lang` or `hibi language use`.
-- **Automatic backups** — every change snapshots the dataset and prunes to a configurable number of copies; restore any of them interactively.
+- **Git-backed history** — every change is automatically committed to a git repo in the data directory; browse the full history and restore any past state interactively with `hibi backup`.
 - **Fuzzy everything** — selecting, removing, and editing all use an [skim](https://github.com/lotabout/skim) fuzzy picker, so you never type names.
 
 ## Data model
@@ -123,7 +123,7 @@ Anything that selects, removes, or edits an existing item opens a fuzzy picker.
 
 **Languages & config**
 - `hibi language add <name> | list | use <name>`
-- `hibi config show | keep <n>` — `n` = backups to retain per dataset
+- `hibi config show`
 - `--lang <name>` — run one command against another dataset
 
 **Backups**
@@ -135,7 +135,7 @@ Anything that selects, removes, or edits an existing item opens a fuzzy picker.
 |---------------------|---------------------------------------------------|
 | Config              | `~/.config/hibi/config.json`                      |
 | A language's data   | `~/.local/share/hibi/<language>/hibi.json`        |
-| Its backups         | `~/.local/share/hibi/<language>/backups/`         |
+| Git history         | `~/.local/share/hibi/.git/`                       |
 | The active timer    | `~/.local/share/hibi/clock.json` (one, global)    |
 
 The `sample` dataset is seeded on first run and is **read-only** — explore it, but create your own language to start logging.
@@ -143,7 +143,7 @@ The `sample` dataset is seeded on first run and is **read-only** — explore it,
 ## Roadmap
 
 - [ ] **Anki integration** — pull known-word counts and the Anki review streak (via AnkiConnect) and include them alongside immersion time in `hibi stats`, so words-known and immersion hours live on one dashboard.
-- [ ] Remote backups — push the pruned backups off-machine (git repo, an S3-compatible bucket, or an SSH target) for safety and cross-device sync.
+- [ ] Remote backups — push the data git repo to a remote for off-machine safety and cross-device sync.
 - [ ] Charts over time (weekly/monthly trend, not just current windows).
 - [ ] Goals and reminders (e.g. a daily minutes target).
 - [ ] Optional non-interactive flags on `rm`/`edit` for scripting.
