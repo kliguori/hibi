@@ -1,6 +1,5 @@
 use crate::config::Config;
 use crate::store;
-use chrono::Local;
 use clap::{Parser, Subcommand};
 
 /// hibi — immersion logging tracker
@@ -39,7 +38,7 @@ pub enum Command {
     Log,
     /// Show immersion statistics
     Stats,
-    /// Manage languages (separate datasets, each with its own backups)
+    /// Manage languages (separate datasets, one shared git history)
     Language {
         #[command(subcommand)]
         action: LanguageAction,
@@ -49,7 +48,7 @@ pub enum Command {
         #[command(subcommand)]
         action: ConfigAction,
     },
-    /// List or restore backups of the active dataset
+    /// Browse the change history or restore the active dataset from it
     Backup {
         #[command(subcommand)]
         action: BackupAction,
@@ -117,14 +116,12 @@ pub enum LanguageAction {
 pub enum ConfigAction {
     /// Show the current configuration and paths
     Show,
-    /// Set how many backups to keep per dataset
-    Keep { count: usize },
 }
 #[derive(Subcommand)]
 pub enum BackupAction {
-    /// List backups for the active dataset (newest first)
+    /// Show the data root's change history (newest first)
     List,
-    /// Restore the active dataset from a backup (interactive)
+    /// Restore the active dataset from a past commit (interactive)
     Restore,
 }
 #[derive(Subcommand)]
@@ -167,7 +164,6 @@ pub fn run() -> anyhow::Result<()> {
         },
         Command::Config { action } => match action {
             ConfigAction::Show => crate::commands::config_show(&config),
-            ConfigAction::Keep { count } => crate::commands::config_set_keep(&mut config, count),
         },
         Command::Backup { action } => match action {
             BackupAction::List => crate::commands::backup_list(&config, cli.lang),
@@ -188,7 +184,7 @@ pub fn run() -> anyhow::Result<()> {
                         crate::commands::clock_in(&root, &lang)
                     }
                 }
-                ClockAction::Out => crate::commands::clock_out(&root, config.keep_backups),
+                ClockAction::Out => crate::commands::clock_out(&root),
                 ClockAction::Pause => crate::commands::clock_pause(&root),
                 ClockAction::Resume => crate::commands::clock_resume(&root),
                 ClockAction::Status => crate::commands::clock_status(&root),
@@ -230,7 +226,7 @@ fn run_data_command(
     if lang == store::SAMPLE_LANG && !is_read_only(&command) {
         println!(
             "The 'sample' dataset is read-only. Start your own with \
-             `hibi language add <name>`."
+             `hibi language add <name>` then `hibi language use <name>`."
         );
         return Ok(());
     }
@@ -240,6 +236,7 @@ fn run_data_command(
 
     let mut db = store::load(&db_path)?;
     let before = store::snapshot(&db)?;
+    let description = format!("{}: {}", lang, describe(&command));
 
     match command {
         Command::Type { action } => match action {
@@ -273,14 +270,67 @@ fn run_data_command(
         | Command::Config { .. }
         | Command::Backup { .. }
         | Command::Clock { .. } => {
-            unreachable!("clock commands are handled in run()")
+            unreachable!("meta and clock commands are handled in run()")
         }
     }
 
     let after = store::snapshot(&db)?;
     if after != before {
-        let timestamp = Local::now().format("%Y-%m-%dT%H-%M-%S").to_string();
-        store::commit(&root, &lang, &db, &timestamp, config.keep_backups)?;
+        store::commit(&root, &lang, &db, &description)?;
     }
     Ok(())
+}
+
+/// Commit-message note for a command. The `List` arms never fire — reads don't commit.
+fn describe(command: &Command) -> &'static str {
+    match command {
+        Command::Type { action } => match action {
+            TypeAction::Add { .. } => "add type",
+            TypeAction::Rm => "remove type",
+            TypeAction::Edit => "rename type",
+            TypeAction::List => "list types",
+        },
+        Command::Mode { action } => match action {
+            ModeAction::Add { .. } => "add mode",
+            ModeAction::Rm => "remove mode",
+            ModeAction::Edit => "rename mode",
+            ModeAction::List => "list modes",
+        },
+        Command::Source { action } => match action {
+            SourceAction::Add { .. } => "add source",
+            SourceAction::Rm => "remove source",
+            SourceAction::Edit => "rename source",
+            SourceAction::List => "list sources",
+        },
+        Command::Session { action } => match action {
+            SessionAction::Add => "add session",
+            SessionAction::Rm => "remove session",
+            SessionAction::Edit => "edit session",
+            SessionAction::List => "list sessions",
+        },
+        Command::Log => "log session",
+        _ => "update",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn describe_labels_mutations() {
+        assert_eq!(describe(&Command::Log), "log session");
+        assert_eq!(
+            describe(&Command::Session { action: SessionAction::Add }),
+            "add session"
+        );
+        assert_eq!(
+            describe(&Command::Source { action: SourceAction::Rm }),
+            "remove source"
+        );
+        assert_eq!(
+            describe(&Command::Type { action: TypeAction::Edit }),
+            "rename type"
+        );
+    }
 }

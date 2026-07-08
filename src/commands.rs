@@ -249,7 +249,8 @@ pub fn source_edit(db: &mut Database) -> anyhow::Result<()> {
         let opt_name = format!("Name  [{}]", cur_name);
         let opt_type = format!("Type  [{}]", cur_type);
         let opt_done = "Finish".to_string();
-        let Some(choice) = skim_pick(&[opt_name.clone(), opt_type.clone(), opt_done.clone()])
+        let Some(choice) =
+            skim_pick(&[opt_name.clone(), opt_type.clone(), opt_done.clone()])
         else {
             break;
         };
@@ -648,7 +649,7 @@ pub fn clock_in(root: &Path, target_lang: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn clock_out(root: &Path, keep_backups: usize) -> anyhow::Result<()> {
+pub fn clock_out(root: &Path) -> anyhow::Result<()> {
     let clock_path = crate::store::clock_file(root);
     let Some(clock) = crate::store::load_clock(&clock_path)? else {
         println!("No active timer. Start one with `hibi clock in`.");
@@ -688,8 +689,12 @@ pub fn clock_out(root: &Path, keep_backups: usize) -> anyhow::Result<()> {
         date: date.clone(),
     });
 
-    let timestamp = Local::now().format("%Y-%m-%dT%H-%M-%S").to_string();
-    crate::store::commit(root, &clock.language, &db, &timestamp, keep_backups)?;
+    crate::store::commit(
+        root,
+        &clock.language,
+        &db,
+        &format!("{}: clock out {}m", clock.language, minutes),
+    )?;
     crate::store::clear_clock(&clock_path)?;
 
     let source_name = db
@@ -1038,8 +1043,8 @@ pub fn language_add(config: &mut Config, name: &str) -> anyhow::Result<()> {
         println!("Language '{}' already exists.", name);
         return Ok(());
     }
-    fs::create_dir_all(crate::store::backups_dir(&root, name))?;
     crate::store::save(&crate::store::db_file(&root, name), &Database::default())?;
+    crate::git::commit_all(&root, &format!("{}: add language", name))?;
 
     config.current = name.to_string();
     crate::config::save(config)?;
@@ -1090,19 +1095,8 @@ pub fn language_use(config: &mut Config, name: &str) -> anyhow::Result<()> {
 pub fn config_show(config: &Config) -> anyhow::Result<()> {
     let root = crate::store::data_root()?;
     println!("current dataset : {}", config.current);
-    println!("keep backups    : {}", config.keep_backups);
     println!("data root       : {}", root.display());
-    println!(
-        "config file     : {}",
-        crate::store::config_file()?.display()
-    );
-    Ok(())
-}
-
-pub fn config_set_keep(config: &mut Config, count: usize) -> anyhow::Result<()> {
-    config.keep_backups = count;
-    crate::config::save(config)?;
-    println!("Will keep {} backup(s) per dataset.", count);
+    println!("config file     : {}", crate::store::config_file()?.display());
     Ok(())
 }
 
@@ -1110,56 +1104,63 @@ fn active_language(config: &Config, lang_override: Option<String>) -> String {
     lang_override.unwrap_or_else(|| config.current.clone())
 }
 
-pub fn backup_list(config: &Config, lang_override: Option<String>) -> anyhow::Result<()> {
+fn short_id(id: &str) -> &str {
+    &id[..id.len().min(8)]
+}
+
+pub fn backup_list(_config: &Config, _lang_override: Option<String>) -> anyhow::Result<()> {
     let root = crate::store::data_root()?;
-    let lang = active_language(config, lang_override);
-    let mut names = crate::store::list_backups(&crate::store::backups_dir(&root, &lang))?;
-    if names.is_empty() {
-        println!("No backups for '{}' yet.", lang);
+    let history = crate::git::log(&root)?;
+    if history.is_empty() {
+        println!("No history yet — make a change and it'll be recorded.");
         return Ok(());
     }
-    names.sort();
-    names.reverse(); // newest first
-    println!("Backups for '{}':", lang);
-    for name in names {
-        println!("  {}", name);
+    println!("History (newest first):");
+    for commit in history {
+        println!("  {}  {}", short_id(&commit.id), commit.message);
     }
     Ok(())
 }
 
-/// Fuzzy-pick a backup and restore from it. The current state is snapshotted
-/// first, so a wrong choice can be undone.
+/// Fuzzy-pick a commit and restore the active dataset to it. The restore is
+/// itself a commit, so a wrong choice can be undone by restoring again.
 pub fn backup_restore(config: &Config, lang_override: Option<String>) -> anyhow::Result<()> {
     let root = crate::store::data_root()?;
     let lang = active_language(config, lang_override);
-    let backups_dir = crate::store::backups_dir(&root, &lang);
 
-    let mut names = crate::store::list_backups(&backups_dir)?;
-    if names.is_empty() {
-        println!("No backups for '{}' to restore.", lang);
+    let history = crate::git::log(&root)?;
+    if history.is_empty() {
+        println!("No history for '{}' to restore from.", lang);
         return Ok(());
     }
-    names.sort();
-    names.reverse(); // newest first in the picker
 
-    let Some(chosen) = skim_pick(&names) else {
+    let lines: Vec<String> = history
+        .iter()
+        .map(|c| format!("{}  {}", short_id(&c.id), c.message))
+        .collect();
+
+    let Some(chosen_line) = skim_pick(&lines) else {
+        return Ok(());
+    };
+    let Some(idx) = lines.iter().position(|l| *l == chosen_line) else {
+        return Ok(());
+    };
+    let commit = &history[idx];
+
+    let rel = format!("{}/hibi.json", lang);
+    let Some(bytes) = crate::git::file_at_commit(&root, &commit.id, &rel)? else {
+        println!("'{}' didn't exist at that point in history.", lang);
         return Ok(());
     };
 
-    let db_path = crate::store::db_file(&root, &lang);
-    let timestamp = Local::now().format("%Y-%m-%dT%H-%M-%S").to_string();
-    crate::store::restore_backup(
-        &db_path,
-        &backups_dir,
-        &chosen,
-        &timestamp,
-        config.keep_backups,
-    )?;
+    fs::write(crate::store::db_file(&root, &lang), bytes)?;
+    crate::git::commit_all(&root, &format!("{}: restore to {}", lang, short_id(&commit.id)))?;
 
     println!(
-        "Restored '{}' from {}.\nYour pre-restore state was saved as a new backup — \
+        "Restored '{}' to {}.\nThe restore is itself a new commit — \
          run `hibi backup restore` again to undo.",
-        lang, chosen
+        lang,
+        short_id(&commit.id)
     );
     Ok(())
 }
@@ -1214,14 +1215,11 @@ mod tests {
         let db = sample_db();
         assert_eq!(
             totals_by_type(&db),
-            vec![("youtube".to_string(), 200), ("podcast".to_string(), 110)]
+            vec![("anime".to_string(), 200), ("podcast".to_string(), 110)]
         );
         assert_eq!(
             totals_by_mode(&db),
-            vec![
-                ("watching".to_string(), 200),
-                ("listening".to_string(), 110)
-            ]
+            vec![("watching".to_string(), 200), ("listening".to_string(), 110)]
         );
         assert_eq!(
             totals_by_source(&db),

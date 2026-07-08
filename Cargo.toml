@@ -13,3 +13,4 @@ directories = "5"
 anyhow = "1"
 skim = "0.10"
 chrono = "0.4"
+gix = { version = "0.70", default-features = false, features = ["revision", "tree-editor"] }

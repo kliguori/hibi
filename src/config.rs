@@ -6,14 +6,12 @@ use std::fs;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Config {
     pub current: String,
-    pub keep_backups: usize,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
             current: "default".to_string(),
-            keep_backups: 10,
         }
     }
 }
@@ -46,14 +44,12 @@ mod tests {
     fn default_has_sane_values() {
         let c = Config::default();
         assert_eq!(c.current, "default");
-        assert_eq!(c.keep_backups, 10);
     }
 
     #[test]
     fn round_trips_through_json() {
         let c = Config {
             current: "japanese".to_string(),
-            keep_backups: 5,
         };
         let json = serde_json::to_string(&c).unwrap();
         let back: Config = serde_json::from_str(&json).unwrap();
